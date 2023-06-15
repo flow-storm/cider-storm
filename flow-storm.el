@@ -37,7 +37,7 @@
 
   (interactive "P")
   (ensure-connected
-   (let* ((prefix (eq (first arg) 4))
+   (let* ((prefix (eq (car arg) 4))
           (current-ns (cider-current-ns))
           (inst-fn-name (if prefix
                             "uninstrument-namespaces-clj"
