@@ -177,6 +177,8 @@ so we know if we need to restore it after.")
 
 (declare-function evil-local-mode "ext:evil-common")
 (defun cider-storm--debug-mode-enter ()
+  "Called to setup the debug mode"
+
   (cider-storm-debugging-mode 1)
 
   (when (bound-and-true-p evil-local-mode)
@@ -186,6 +188,8 @@ so we know if we need to restore it after.")
     (message "Evil mode disabled for this buffer while the debugger is on")))
 
 (defun cider-storm--debug-mode-quit ()
+  "Called to tear down the debug mode"
+
   (cider--debug-remove-overlays)
   (cider-storm-debugging-mode -1)
 
@@ -195,6 +199,10 @@ so we know if we need to restore it after.")
     (message "Evil mode restored in this buffer")))
 
 (defun cider-storm--select-form (form-id)
+  "Given a FORM-ID retrievs the file/line information for it and
+opens a buffer for it. If there is no file info for the form it will popup
+a buffer for it. Returns the line number in the buffer where the form is located."
+
   (let* ((form (cider-storm--get-form form-id))
          (form-file (nrepl-dict-get form "file"))
          (form-line (nrepl-dict-get form "line")))
@@ -225,6 +233,8 @@ so we know if we need to restore it after.")
     ("expr"      'expr)))
 
 (defun cider-storm--show-header-overlay (form-line entry-idx total-entries)
+  "Helper to display the overlay at the top of the current debugging form."
+
   (let* ((form-beg-pos (save-excursion
                          (goto-char (point-min))
                          (forward-line (- form-line 2))
@@ -238,6 +248,9 @@ so we know if we need to restore it after.")
     (push #'cider--delete-overlay (overlay-get o 'modification-hooks))))
 
 (defun cider-storm--display-step (form-id entry trace-cnt)
+  "Given a FORM-ID, the current timeline ENTRY and a TRACE-CNT
+does everything necessary to display the entry on the form."
+
   (let* ((form-line (cider-storm--select-form form-id))
          (entry-type (cider-storm--entry-type entry))
          (entry-idx (nrepl-dict-get entry "idx")))
@@ -285,6 +298,8 @@ q - Quit the debugger mode.")
         (insert help-text)))))
 
 (defun cider-storm--pprint-current-entry ()
+  "Popups a buffer and pretty prints the current entry result."
+
   (let* ((entry-type (cider-storm--entry-type cider-storm-current-entry)))
     (when (or (eq entry-type 'fn-return)
               (eq entry-type 'expr))
@@ -302,6 +317,9 @@ q - Quit the debugger mode.")
             (insert val-str)))))))
 
 (defun cider-storm--jump-to-code (flow-id thread-id next-entry)
+  "Given a FLOW-ID, THREAD-ID and a timeline NEXT-ENTRY object moves the debugger
+state and display the next entry."
+
   (let* ((curr-fn-call-idx (nrepl-dict-get cider-storm-current-frame "fn-call-idx"))
          (next-fn-call-idx (nrepl-dict-get next-entry "fn-call-idx"))
          (changing-frame? (not (eq curr-fn-call-idx next-fn-call-idx)))
@@ -333,6 +351,8 @@ q - Quit the debugger mode.")
     (setq cider-storm-current-entry next-entry)))
 
 (defun cider-storm--jump-to (n)
+  "Jump into the N possition in the timeline for the current threa and flow."
+
   (let* ((entry (cider-storm--timeline-entry cider-storm-current-flow-id
                                              cider-storm-current-thread-id
                                              n
@@ -342,6 +362,8 @@ q - Quit the debugger mode.")
                                entry)))
 
 (defun cider-storm--step (drift)
+  "Step the debugger. DRIFT should be a string with any of:
+ next-out, next, next-over, prev, prev-over. "
 
   (let* ((curr-idx (nrepl-dict-get cider-storm-current-entry "idx")))
     (if curr-idx
@@ -357,6 +379,9 @@ q - Quit the debugger mode.")
 
 
 (defun cider-storm--define-all-bindings-for-frame ()
+  "Retrieves all bindings for the current debugger position and
+defines them on the current namespace."
+
   (let* ((bindings (cider-storm--bindings cider-storm-current-flow-id
                                           cider-storm-current-thread-id
                                           (nrepl-dict-get cider-storm-current-entry "idx")
@@ -369,6 +394,8 @@ q - Quit the debugger mode.")
      bindings)))
 
 (defun cider-storm--inspect-current-entry ()
+  "Opens the cider inspector for the current entry result."
+
   (let* ((entry-type (cider-storm--entry-type cider-storm-current-entry)))
     (if (or (eq entry-type 'fn-return)
             (eq entry-type 'expr))
@@ -380,6 +407,8 @@ q - Quit the debugger mode.")
       (message "You are currently positioned in a FnCall which is not inspectable."))))
 
 (defun cider-storm--tap-current-entry ()
+  "Taps the current entry result."
+
   (let* ((entry-type (cider-storm--entry-type cider-storm-current-entry)))
     (if (or (eq entry-type 'fn-return)
             (eq entry-type 'expr))
@@ -390,6 +419,9 @@ q - Quit the debugger mode.")
       (message "You are currently positioned in a FnCall which is not inspectable."))))
 
 (defun cider-storm--debug-fn (fq-fn-name)
+  "Given FQ-FN-NAME which should be a string with a fully qualified function name,
+finds the first recording entry for it and starts the debugger there."
+
   (let* ((fn-call (cider-storm--find-fn-call fq-fn-name 0 nil)))
     (if fn-call
         (let* ((form-id (nrepl-dict-get fn-call "form-id"))
