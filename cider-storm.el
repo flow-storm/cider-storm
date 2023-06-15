@@ -1,3 +1,46 @@
+;;; cider-storm.el --- Cider front-end for the FlowStorm debugger  -*- lexical-binding: t -*-
+
+;; Copyright (c) 2023 Juan Monetta <jpmonettas@gmail.com>
+
+;; Author: Juan Monetta <jpmonettas@gmail.com>
+;; URL: https://github.com/jpmonettas/cider-storm
+;; Keywords: convenience, tools, debugger, clojure, cider
+;; Version: 0.1
+;; Package-Requires: ((emacs "26") (cider "1.6.0"))
+;; SPDX-License-Identifier: GPL-3.0-or-later
+
+;; This file is NOT part of GNU Emacs.
+
+;;; License:
+
+;; This program is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+
+;; This program is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
+
+;; You should have received a copy of the GNU General Public License
+;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+;;; Commentary:
+
+;; Cider Storm is an Emacs Cider front-end for the
+;; [FlowStorm debugger](https://github.com/jpmonettas/flow-storm-debugger)
+;; with support for Clojure and ClojureScript.
+
+;; It brings the time-travel code stepping capabilities of FlowStorm to Emacs,
+;; providing an interface similar to the Cider debugger one.
+
+;; Cider Storm isn't trying to re-implement the entire FlowStorm UI, but the
+;; most used functionality.  You can always start the full FlowStorm UI if you
+;; need the extra tools.
+
+;;; Code:
+
 (require 'cider)
 
 ;;(add-to-list 'cider-jack-in-nrepl-middlewares "flow-storm.nrepl.middleware/wrap-flow-storm")
@@ -435,3 +478,6 @@ After selecting one, will start the debugger on that function."
     ("i" . (lambda () (interactive) (cider-storm--inspect-current-entry)))
     ("t" . (lambda () (interactive) (cider-storm--tap-current-entry)))
     ("D" . (lambda () (interactive) (cider-storm--define-all-bindings-for-frame)))))
+
+(provide 'cider-storm)
+;;; cider-storm.el ends here
