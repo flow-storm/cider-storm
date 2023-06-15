@@ -147,11 +147,11 @@ so we know if we need to restore it after.")
                                                  "fn-call-idx" ,fn-call-idx))
                 (nrepl-dict-get "frame")))
 
-(defun cider-storm--pprint-val-ref (v-ref print-length print-level print-meta pprint)
+(defun cider-storm--pprint-val-ref (v-ref val-print-length val-print-level print-meta pprint)
   (thread-first (cider-nrepl-send-sync-request `("op"          "flow-storm-pprint"
                                                  "val-ref"      ,v-ref
-                                                 "print-length" ,print-length
-                                                 "print-level"  ,print-level
+                                                 "print-length" ,val-print-length
+                                                 "print-level"  ,val-print-level
                                                  "print-meta"   ,(if print-meta "true" "false")
                                                  "pprint"       ,(if pprint     "true" "false")))
                 (nrepl-dict-get "pprint")))
@@ -175,11 +175,11 @@ so we know if we need to restore it after.")
 ;; Debugger implementation ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(declare-function evil-local-mode "ext:evil-common")
 (defun cider-storm--debug-mode-enter ()
   (cider-storm-debugging-mode 1)
 
-  (when (and (boundp 'evil-local-mode)
-             evil-local-mode)
+  (when (bound-and-true-p evil-local-mode)
     ;; if evil-mode disable evil-mode for the buffer
     (evil-local-mode -1)
     (setq cider-storm-disabled-evil-mode-p t)
@@ -214,7 +214,8 @@ so we know if we need to restore it after.")
             (cider-storm--debug-mode-enter)
             (insert "\n")
             (insert pprinted-form)
-            (goto-line 2)
+            (goto-char (point-min))
+            (forward-line 1)
             2))))))
 
 (defun cider-storm--entry-type (entry)
@@ -224,8 +225,10 @@ so we know if we need to restore it after.")
     ("expr"      'expr)))
 
 (defun cider-storm--show-header-overlay (form-line entry-idx total-entries)
-  (let* ((form-beg-pos (save-excursion (goto-line (- form-line 1)) (point)))
-         (props '(face cider-debug-code-overlay-face priority 2000))
+  (let* ((form-beg-pos (save-excursion
+                         (goto-char (point-min))
+                         (forward-line (- form-line 2))
+                         (point)))
          (o (make-overlay form-beg-pos form-beg-pos (current-buffer))))
     (overlay-put o 'category 'debug-code)
     (overlay-put o 'cider-temporary t)
@@ -255,7 +258,6 @@ so we know if we need to restore it after.")
                                                       3
                                                       nil
                                                       nil))
-             (val-type (nrepl-dict-get val-pprint "val-type"))
              (val-str (nrepl-dict-get val-pprint "val-str")))
 
         (cider--debug-display-result-overlay val-str)))))
@@ -292,7 +294,6 @@ q - Quit the debugger mode.")
                                                       3
                                                       nil
                                                       't))
-             (val-type (nrepl-dict-get val-pprint "val-type"))
              (val-str (nrepl-dict-get val-pprint "val-str"))
              (val-buffer (cider-popup-buffer "*cider-storm-pprint*" 'select 'clojure-mode)))
 
@@ -304,15 +305,15 @@ q - Quit the debugger mode.")
   (let* ((curr-fn-call-idx (nrepl-dict-get cider-storm-current-frame "fn-call-idx"))
          (next-fn-call-idx (nrepl-dict-get next-entry "fn-call-idx"))
          (changing-frame? (not (eq curr-fn-call-idx next-fn-call-idx)))
-         (curr-frame (if changing-frame?
-                         (let* ((first-frame (cider-storm--frame-data flow-id thread-id 0))
-                                (first-entry (cider-storm--timeline-entry flow-id thread-id 0 "at"))
-                                (trace-cnt (cider-storm--trace-cnt flow-id thread-id)))
-                           (setq cider-storm-current-thread-trace-cnt trace-cnt)
-                           (setq cider-storm-current-frame first-frame)
-                           (setq cider-storm-current-entry first-entry)
-                           first-frame)
-                       cider-storm-current-frame))
+         (_curr-frame (if changing-frame?
+                          (let* ((first-frame (cider-storm--frame-data flow-id thread-id 0))
+                                 (first-entry (cider-storm--timeline-entry flow-id thread-id 0 "at"))
+                                 (trace-cnt (cider-storm--trace-cnt flow-id thread-id)))
+                            (setq cider-storm-current-thread-trace-cnt trace-cnt)
+                            (setq cider-storm-current-frame first-frame)
+                            (setq cider-storm-current-entry first-entry)
+                            first-frame)
+                        cider-storm-current-frame))
          (curr-idx (nrepl-dict-get cider-storm-current-entry "idx"))
          (next-idx (nrepl-dict-get next-entry "idx"))
 
@@ -321,8 +322,8 @@ q - Quit the debugger mode.")
                        cider-storm-current-frame))
          (curr-form-id (nrepl-dict-get cider-storm-current-frame "form-id"))
          (next-form-id (nrepl-dict-get next-frame "form-id"))
-         (first-jump? (and (zerop curr-idx) (zerop next-idx)))
-         (changing-form? (not (eq curr-form-id next-form-id))))
+         (_first-jump? (and (zerop curr-idx) (zerop next-idx)))
+         (_changing-form? (not (eq curr-form-id next-form-id))))
 
     (when changing-frame?
       (setq cider-storm-current-frame next-frame))
@@ -402,7 +403,7 @@ q - Quit the debugger mode.")
           (setq cider-storm-current-thread-trace-cnt trace-cnt)
           (setq cider-storm-current-frame nil)
           (cider-storm--display-step form-id fn-call cider-storm-current-thread-trace-cnt))
-      (message "No recording found for %s/%s" fn-ns fn-name))))
+      (message "No recording found for %s" fq-fn-name))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Debugger interactive API ;;
@@ -458,7 +459,7 @@ After selecting one, will start the debugger on that function."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-minor-mode cider-storm-debugging-mode
-  "Toggle cider-storm-debugging-mode"
+  "Toggle cider-storm-debugging-mode."
   ;; The initial value.
   :init-value nil
   ;; The indicator for the mode line.
