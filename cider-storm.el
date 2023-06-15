@@ -2,23 +2,70 @@
 
 ;;(add-to-list 'cider-jack-in-nrepl-middlewares "flow-storm.nrepl.middleware/wrap-flow-storm")
 
-;; (nrepl-dict-get (cider-storm-find-fn-call "dev-tester/boo" 0 nil) "form-id")
-;; (cider-var-info "dev-tester/boo")
-;; (cider-storm-get-form 440181832)
-;; (cider-storm-timeline-entry nil 20 7 "next")
-
-
 ;;;;;;;;;;;;;;;;;;;;
 ;; Debugger state ;;
 ;;;;;;;;;;;;;;;;;;;;
 
-(defvar cider-storm-current-flow-id nil)
-(defvar cider-storm-current-thread-id nil)
-(defvar cider-storm-current-entry nil)
-(defvar cider-storm-initial-entry nil)
-(defvar cider-storm-current-frame nil)
-(defvar cider-storm-current-thread-trace-cnt nil)
-(defvar cider-storm-disabled-evil-mode-p nil)
+(defvar cider-storm-current-flow-id nil
+  "The current flow id. Will be a positive number or nil
+for the funnel flow")
+
+(defvar cider-storm-current-thread-id nil
+  "Always a positive number representing the thread the stepper
+is currently on")
+
+(defvar cider-storm-current-entry nil
+  "A nrepl dict representing the current entry on the timeline
+the stepper is currently in.
+The stepper will always be on a fn-call, expr or fn-return
+Example :
+
+(dict
+    \"type\"        \"expr\"
+    \"coord\"       (2 2 1)
+    \"fn-call-idx\" 117
+    \"idx\"         118
+    \"result\"      6)
+")
+
+(defvar cider-storm-initial-entry nil
+  "The entry point to your recordings. This should be a timeline
+entry always of type fn-call.
+Example :
+(dict
+    \"type\"       \"fn-call\"
+    \"flow-id\"     nil
+    \"thread-id\"   18
+    \"fn-args\"     1
+    \"fn-call-idx\" 116
+    \"fn-name\"     \"boo\"
+    \"fn-ns\"       \"dev-tester\"
+    \"form-id\"     698052411
+    \"idx\"         116
+    \"parent-indx\" 115
+    \"ret-idx\"     874)
+")
+
+(defvar cider-storm-current-frame nil
+  "The current fn frame the stepper is in.
+Example :
+
+(dict
+ \"args-vec\"           2
+ \"fn-call-idx\"        117
+ \"fn-name\"            \"other-function\"
+ \"fn-ns\"              \"dev-tester\"
+ \"form-id\"            1451539897
+ \"parent-fn-call-idx\" 116
+ \"ret\"                5)
+")
+
+(defvar cider-storm-current-thread-trace-cnt nil
+  "Current thread timeline length")
+
+(defvar cider-storm-disabled-evil-mode-p nil
+  "Tracks if we disabled evil-mode when entering the debugger minor-mode
+so we know if we need to restore it after.")
 
 ;;;;;;;;;;;;;;;;;;;;
 ;; Middleware api ;;
@@ -320,11 +367,20 @@ q - Quit the debugger mode.")
 
 (defun cider-storm-clear-recordings ()
 
+  "Clear all FlowStorm recordings, for every flow and every thread.
+
+Useful for running it before executing the code you are interested in debugging,
+to ensure all the recordings have to do with the code you just run."
+
   (interactive)
 
   (cider-storm--clear-recordings))
 
 (defun cider-storm-debug-current-fn ()
+
+  "When the cursor is over a fn name, it will start the debugger
+on the first recording found for that fn name. Will search every flow and
+every thread."
   
   (interactive)
 
@@ -339,6 +395,11 @@ q - Quit the debugger mode.")
 		 (cider-storm--debug-fn fq-fn-name))))))
 
 (defun cider-storm-debug-fn ()
+
+  "Lets you select a function from a list of all the functions currently recorded.
+Will search every flow and every thread.
+
+After selecting one, will start the debugger on that function."
   
   (interactive)
 
