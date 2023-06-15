@@ -8,6 +8,10 @@ similar to the Cider debugger one.
 Cider Storm isn't trying to re-implement the entire FlowStorm UI, but the most used functionality.
 You can always start the full FlowStorm UI if you need the extra tools.
 
+
+https://github.com/jpmonettas/cider-storm/assets/786299/4328309c-9a60-47e1-ae1b-878884f19aa3
+
+
 ## Pre-requisites
 
 	- cider
