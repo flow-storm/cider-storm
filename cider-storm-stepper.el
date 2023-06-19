@@ -429,22 +429,21 @@ defines them on the current namespace."
       (message "You are currently positioned in a FnCall which is not inspectable."))))
 
 (defun cider-storm--debug-fn (fn-call)
-  "Given FQ-FN-NAME which should be a string with a fully qualified function name,
+  "Given FN-CALL which should be a string with a fully qualified function name,
 finds the first recording entry for it and starts the debugger there."
 
-  (if fn-call
-      (let* ((form-id (nrepl-dict-get fn-call "form-id"))
-             (flow-id (nrepl-dict-get fn-call "flow-id"))
-             (thread-id (nrepl-dict-get fn-call "thread-id"))
-             (trace-cnt (cider-storm--trace-cnt flow-id thread-id)))
-        (setq cider-storm-current-entry fn-call)
-        (setq cider-storm-current-flow-id flow-id)
-        (setq cider-storm-current-thread-id thread-id)
-        (setq cider-storm-initial-entry fn-call)
-        (setq cider-storm-current-thread-trace-cnt trace-cnt)
-        (setq cider-storm-current-frame nil)
-        (cider-storm--display-step form-id fn-call cider-storm-current-thread-trace-cnt))
-    (message "No recording found for %s" fq-fn-name)))
+  (when fn-call
+    (let* ((form-id (nrepl-dict-get fn-call "form-id"))
+           (flow-id (nrepl-dict-get fn-call "flow-id"))
+           (thread-id (nrepl-dict-get fn-call "thread-id"))
+           (trace-cnt (cider-storm--trace-cnt flow-id thread-id)))
+      (setq cider-storm-current-entry fn-call)
+      (setq cider-storm-current-flow-id flow-id)
+      (setq cider-storm-current-thread-id thread-id)
+      (setq cider-storm-initial-entry fn-call)
+      (setq cider-storm-current-thread-trace-cnt trace-cnt)
+      (setq cider-storm-current-frame nil)
+      (cider-storm--display-step form-id fn-call cider-storm-current-thread-trace-cnt))))
 
 (defun cider-storm--debug-flow (flow-id)
 
