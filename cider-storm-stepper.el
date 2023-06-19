@@ -47,8 +47,13 @@
 ;; Debugger state ;;
 ;;;;;;;;;;;;;;;;;;;;
 
+(require 'subr-x)
+(require 'cider)
+
+(defvar cider-storm-debugging-mode) ;; just so flycheck doesn't complain
+
 (defvar cider-storm-current-flow-id nil
-  "The current flow id. Will be a positive number or nil
+  "The current flow id. A positive number or nil
 for the funnel flow")
 
 (defvar cider-storm-current-thread-id nil
@@ -204,7 +209,8 @@ so we know if we need to restore it after.")
 (defun cider-storm--select-form (form-id)
   "Given a FORM-ID retrievs the file/line information for it and
 opens a buffer for it. If there is no file info for the form it will popup
-a buffer for it. Returns the line number in the buffer where the form is located."
+a buffer for it.
+Returns the line number in the buffer where the form is located."
 
   (let* ((form (cider-storm--get-form form-id))
          (form-file (nrepl-dict-get form "file"))
@@ -335,22 +341,19 @@ state and display the next entry."
   (let* ((curr-fn-call-idx (nrepl-dict-get cider-storm-current-frame "fn-call-idx"))
          (next-fn-call-idx (nrepl-dict-get next-entry "fn-call-idx"))
          (changing-frame? (not (eq curr-fn-call-idx next-fn-call-idx)))
-         (_curr-frame (if changing-frame?
-                          (let* ((first-frame (cider-storm--frame-data flow-id thread-id 0))
-                                 (first-entry (cider-storm--timeline-entry flow-id thread-id 0 "at"))
-                                 (trace-cnt (cider-storm--trace-cnt flow-id thread-id)))
-                            (setq cider-storm-current-thread-trace-cnt trace-cnt)
-                            (setq cider-storm-current-frame first-frame)
-                            (setq cider-storm-current-entry first-entry)
-                            first-frame)
-                        cider-storm-current-frame))
-         (curr-idx (nrepl-dict-get cider-storm-current-entry "idx"))
-         (next-idx (nrepl-dict-get next-entry "idx"))
+         (curr-frame (if changing-frame?
+                         (let* ((first-frame (cider-storm--frame-data flow-id thread-id 0))
+                                (first-entry (cider-storm--timeline-entry flow-id thread-id 0 "at"))
+                                (trace-cnt (cider-storm--trace-cnt flow-id thread-id)))
+                           (setq cider-storm-current-thread-trace-cnt trace-cnt)
+                           (setq cider-storm-current-frame first-frame)
+                           (setq cider-storm-current-entry first-entry)
+                           first-frame)
+                       cider-storm-current-frame))
 
          (next-frame (if changing-frame?
                          (cider-storm--frame-data flow-id thread-id next-fn-call-idx)
-                       cider-storm-current-frame))
-         (curr-form-id (nrepl-dict-get cider-storm-current-frame "form-id"))
+                       curr-frame))
          (next-form-id (nrepl-dict-get next-frame "form-id")))
 
     (when changing-frame?
@@ -432,25 +435,27 @@ defines them on the current namespace."
   "Given FN-CALL which should be a string with a fully qualified function name,
 finds the first recording entry for it and starts the debugger there."
 
-  (when fn-call
-    (let* ((form-id (nrepl-dict-get fn-call "form-id"))
-           (flow-id (nrepl-dict-get fn-call "flow-id"))
-           (thread-id (nrepl-dict-get fn-call "thread-id"))
-           (trace-cnt (cider-storm--trace-cnt flow-id thread-id)))
-      (setq cider-storm-current-entry fn-call)
-      (setq cider-storm-current-flow-id flow-id)
-      (setq cider-storm-current-thread-id thread-id)
-      (setq cider-storm-initial-entry fn-call)
-      (setq cider-storm-current-thread-trace-cnt trace-cnt)
-      (setq cider-storm-current-frame nil)
-      (cider-storm--display-step form-id fn-call cider-storm-current-thread-trace-cnt))))
+  (let* ((form-id (nrepl-dict-get fn-call "form-id"))
+         (flow-id (nrepl-dict-get fn-call "flow-id"))
+         (thread-id (nrepl-dict-get fn-call "thread-id"))
+         (trace-cnt (cider-storm--trace-cnt flow-id thread-id)))
+    (setq cider-storm-current-entry fn-call)
+    (setq cider-storm-current-flow-id flow-id)
+    (setq cider-storm-current-thread-id thread-id)
+    (setq cider-storm-initial-entry fn-call)
+    (setq cider-storm-current-thread-trace-cnt trace-cnt)
+    (setq cider-storm-current-frame nil)
+    (cider-storm--display-step form-id fn-call cider-storm-current-thread-trace-cnt)))
 
 (defun cider-storm--debug-flow (flow-id)
 
-  "Given a FLOW-ID finds the first recording entry for it and starts the debugger there."
-  
-  (cider-storm--debug-fn
-   (cider-storm--find-flow-fn-call flow-id)))
+  "Given a FLOW-ID finds the first recording entry for it and
+ starts the debugger there."
+
+  (let* ((fn-call (cider-storm--find-flow-fn-call flow-id)))
+    (if fn-call
+        (cider-storm--debug-fn fn-call)
+      (message "No recordings found for flow %s" flow-id))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Debugger interactive API ;;
@@ -481,10 +486,12 @@ every thread."
      (let* ((info (cider-var-info var-name))
             (fn-ns (nrepl-dict-get info "ns"))
             (fn-name (nrepl-dict-get info "name"))
-            (fq-fn-name (format "%s/%s" fn-ns fn-name)))
-       (when (and fn-ns fn-name)
-         (cider-storm--debug-fn
-          (cider-storm--find-fn-call fq-fn-name 0 nil)))))))
+            (fq-fn-name (format "%s/%s" fn-ns fn-name))
+            (fn-call (when (and fn-ns fn-name)
+                       (cider-storm--find-fn-call fq-fn-name 0 nil))))
+       (if fn-call
+           (cider-storm--debug-fn fn-call)
+         (message "No recordings found for %s/%s" fn-ns fn-name))))))
 
 (defun cider-storm-debug-fn ()
 
@@ -499,9 +506,11 @@ After selecting one, will start the debugger on that function."
          (fq-fn-name (completing-read "Recorded function :"
                                       (mapcar (lambda (fn-dict)
                                                 (nrepl-dict-get fn-dict "fq-fn-name"))
-                                              fns))))
-    (cider-storm--debug-fn
-     (cider-storm--find-fn-call fq-fn-name 0 nil))))
+                                              fns)))
+         (fn-call (cider-storm--find-fn-call fq-fn-name 0 nil)))
+    (if fn-call
+        (cider-storm--debug-fn fn-call)
+      (message "No recordings found for %s" fq-fn-name))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; cider-storm minor mode ;;
