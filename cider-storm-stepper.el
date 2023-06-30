@@ -265,6 +265,125 @@ Returns the line number in the buffer where the form is located."
     (overlay-put o 'before-string (format "CiderStorm - Debugging (%d/%d), press h for help" entry-idx total-entries))
     (push #'cider--delete-overlay (overlay-get o 'modification-hooks))))
 
+(defun cider-storm--clojure-form-source-hash (s)
+
+  "Hash a clojure form string into a 32 bit num.
+  Meant to be called with printed representations of a form,
+  or a form source read from a file."
+
+  (let* ((M 4294967291)
+         (clean-s (thread-last
+                   s
+                   (replace-regexp-in-string "#[\/\.a-zA-Z0-9_\-]+" "") ;; remove tage
+                   (replace-regexp-in-string "\\^:[a-zA-Z0-9_\-]+" "")  ;; remove meta keys
+                   (replace-regexp-in-string "\\^\{.+?\}" "")           ;; remove meta maps
+                   (replace-regexp-in-string ";.+\n" "")                ;; remove comments
+                   (replace-regexp-in-string "[\s\t\n]+" "")))          ;; remove non visible
+         (slen (string-width clean-s))
+         (sum 0)
+         (mul 1)
+         (i 0))
+    (while (< i slen)
+      (let* ((cval (elt clean-s i)))
+        (setq mul (if (= 0 (mod i 4)) 1 (* mul 256)))
+        (setq sum (+ sum (* cval mul)))
+        (setq i (+ i 1))))
+    (mod sum M)))
+
+(defun cider-storm--debug-goto-keyval (str-coord)
+  (when-let* ((limit (ignore-errors (save-excursion (up-list) (point)))))
+    (let* ((coord-type (elt str-coord 0))
+           (coord-hash (string-to-number (substring str-coord 1)))
+           (found nil))
+      (while (and (< (point) limit)
+                  (not found))
+        (let* ((curr-sexp-beg (point))
+               (curr-sexp-end (save-excursion (clojure-forward-logical-sexp 1) (point)))
+               (sexp-str (buffer-substring curr-sexp-beg curr-sexp-end))
+               (sexp-hash (cider-storm--clojure-form-source-hash sexp-str)))
+          (if (= coord-hash sexp-hash)
+              (setq found t)
+            (clojure-forward-logical-sexp 1))))
+      (if (not found)
+          (error (message "Can't find instrumented key sexp"))
+        (when (eq coord-type ?V)
+          (clojure-forward-logical-sexp 1))))))
+
+;; This was stolen from Cider bacause we do something
+;; a little different here on map coordinates
+(defun cider-storm--debug-move-point (coordinates)
+
+  "Place point on after the sexp specified by COORDINATES.
+COORDINATES is a list of integers that specify how to navigate into the
+sexp that is after point when this function is called.
+
+In addition to numbers, a coordinate can be a string.
+This string contains directions to find a key or value in a map
+or an expression in a set."
+  
+  (condition-case-unless-debug nil
+      ;; Navigate through sexps inside the sexp.
+      (let ((in-syntax-quote nil))
+        (while coordinates
+          (while (clojure--looking-at-non-logical-sexp)
+            (forward-sexp))
+          ;; An `@x` is read as (deref x), so we pop coordinates once to account
+          ;; for the extra depth, and move past the @ char.
+          (if (eq ?@ (char-after))
+              (progn (forward-char 1)
+                     (pop coordinates))
+            (down-list)
+            ;; Are we entering a syntax-quote?
+            (when (looking-back "`\\(#{\\|[{[(]\\)" (line-beginning-position))
+              ;; If we are, this affects all nested structures until the next `~',
+              ;; so we set this variable for all following steps in the loop.
+              (setq in-syntax-quote t))
+            (when in-syntax-quote
+              ;; A `(. .) is read as (seq (concat (list .) (list .))). This pops
+              ;; the `seq', since the real coordinates are inside the `concat'.
+              (pop coordinates)
+              ;; Non-list seqs like `[] and `{} are read with
+              ;; an extra (apply vector ...), so pop it too.
+              (unless (eq ?\( (char-before))
+                (pop coordinates)))
+            ;; #(...) is read as (fn* ([] ...)), so we patch that here.
+            (when (looking-back "#(" (line-beginning-position))
+              (pop coordinates))
+            (if coordinates
+                (let ((next (pop coordinates)))
+                  (when in-syntax-quote
+                    ;; We're inside the `concat' form, but we need to discard the
+                    ;; actual `concat' symbol from the coordinate.
+                    (setq next (1- next)))
+                  ;; String coordinates are map keys.
+                  (if (stringp next)
+                      (cider-storm--debug-goto-keyval next)
+                    (clojure-forward-logical-sexp next)
+                    (when in-syntax-quote
+                      (clojure-forward-logical-sexp 1)
+                      (forward-sexp -1)
+                      ;; Here a syntax-quote is ending.
+                      (let ((match (when (looking-at "~@?")
+                                     (match-string 0))))
+                        (when match
+                          (setq in-syntax-quote nil))
+                        ;; A `~@' is read as the object itself, so we don't pop
+                        ;; anything.
+                        (unless (equal "~@" match)
+                          ;; Anything else (including a `~') is read as a `list'
+                          ;; form inside the `concat', so we need to pop the list
+                          ;; from the coordinates.
+                          (pop coordinates))))))
+              ;; If that extra pop was the last coordinate, this represents the
+              ;; entire #(...), so we should move back out.
+              (backward-up-list)))
+          ;; Finally skip past all #_ forms
+          (cider--debug-skip-ignored-forms))
+        ;; Place point at the end of instrumented sexp.
+        (clojure-forward-logical-sexp 1))
+    ;; Avoid throwing actual errors, since this happens on every breakpoint.
+    (error (message "Can't find instrumented sexp, did you edit the source?"))))
+
 (defun cider-storm--display-step (form-id entry trace-cnt)
   "Given a FORM-ID, the current timeline ENTRY and a TRACE-CNT
 does everything necessary to display the entry on the form."
@@ -274,7 +393,7 @@ does everything necessary to display the entry on the form."
          (entry-idx (nrepl-dict-get entry "idx")))
 
     (when-let* ((coord (nrepl-dict-get entry "coord")))
-      (cider--debug-move-point coord))
+      (cider-storm--debug-move-point coord))
 
     (cider--debug-remove-overlays)
 
