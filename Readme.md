@@ -18,7 +18,7 @@ https://github.com/jpmonettas/cider-storm/assets/786299/4328309c-9a60-47e1-ae1b-
 
 - cider
 - flow-storm >= `3.6.7`
-- when using ClojureStorm `1.11.1-7` or `1.12.0-alpha4_1`
+- when using ClojureStorm >= `1.11.1-7` or >= `1.12.0-alpha4_1`
 	
 ## Installation
 
