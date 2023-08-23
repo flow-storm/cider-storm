@@ -391,9 +391,13 @@ does everything necessary to display the entry on the form."
   (let* ((form-line (cider-storm--select-form form-id))
          (entry-type (cider-storm--entry-type entry))
          (entry-idx (nrepl-dict-get entry "idx")))
+    
+    (if-let* ((coord (nrepl-dict-get entry "coord")))
+        (cider-storm--debug-move-point coord)
 
-    (when-let* ((coord (nrepl-dict-get entry "coord")))
-      (cider-storm--debug-move-point coord))
+      ;; if it has a nil coord and is a fn-return go to the end to display the result
+      (when (eq entry-type 'fn-return)
+        (clojure-forward-logical-sexp 1)))
 
     (cider--debug-remove-overlays)
 
