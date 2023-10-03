@@ -429,6 +429,7 @@ N - Step next over. Go to the next recorded step on the same frame.
 . - Pprint current value.
 i - Inspect current value using the Cider inspector.
 t - Tap the current value.
+l - Show current locals.
 D - Define all recorded bindings for this frame (scope capture like).
 h - Prints this help.
 q - Quit the debugger mode.")
@@ -580,6 +581,30 @@ finds the first recording entry for it and starts the debugger there."
         (cider-storm--debug-fn fn-call)
       (message "No recordings found for flow %s" flow-id))))
 
+(defun cider-storm--show-current-locals ()
+  "Retrieves bindings for the current index and opens a buffer displaying them"
+
+  (let* ((bindings (cider-storm--bindings cider-storm-current-flow-id
+                                          cider-storm-current-thread-id
+                                          (nrepl-dict-get cider-storm-current-entry "idx")
+                                          nil))
+         (locals (nrepl-dict-map
+                  (lambda (bind-name bind-val-id)
+                    (let* ((val-pprint (cider-storm--pprint-val-ref bind-val-id
+                                                                    5
+                                                                    1
+                                                                    nil
+                                                                    nil))
+                           (val-str (nrepl-dict-get val-pprint "val-str")))
+                      (list bind-name val-str)))
+                  bindings))
+         (locals-text (cider--debug-format-locals-list locals)))
+
+    (let* ((locals-buf (cider-popup-buffer "*cider-storm-locals*" 'select)))
+      (with-current-buffer locals-buf
+        (let ((inhibit-read-only t))
+          (insert locals-text))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Debugger interactive API ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -659,6 +684,7 @@ After selecting one, will start the debugger on that function."
     ("." . (lambda () (interactive) (cider-storm--pprint-current-entry)))
     ("i" . (lambda () (interactive) (cider-storm--inspect-current-entry)))
     ("t" . (lambda () (interactive) (cider-storm--tap-current-entry)))
+    ("l" . (lambda () (interactive) (cider-storm--show-current-locals)))    
     ("D" . (lambda () (interactive) (cider-storm--define-all-bindings-for-frame)))))
 
 (provide 'cider-storm-stepper)
