@@ -1,6 +1,6 @@
 # Cider Storm
 
-Cider Storm is an Emacs Cider front-end for the [FlowStorm debugger](https://github.com/jpmonettas/flow-storm-debugger) with support for Clojure and ClojureScript.
+Cider Storm is an Emacs Cider front-end for the [FlowStorm debugger](https://github.com/flow-storm/flow-storm-debugger) with support for Clojure and ClojureScript.
 
 It brings the time-travel code stepping capabilities of FlowStorm to Emacs, providing an interface 
 similar to the Cider debugger one.
@@ -11,7 +11,7 @@ Cider Storm isn't trying to re-implement the entire FlowStorm UI, but the most u
 You can always start the full FlowStorm UI if you need the extra tools.
 
 
-https://github.com/jpmonettas/cider-storm/assets/786299/4328309c-9a60-47e1-ae1b-878884f19aa3
+https://github.com/flow-storm/cider-storm/assets/786299/4328309c-9a60-47e1-ae1b-878884f19aa3
 
 
 ## Pre-requisites
@@ -22,7 +22,7 @@ https://github.com/jpmonettas/cider-storm/assets/786299/4328309c-9a60-47e1-ae1b-
 	
 ## Installation
 
-First you need to setup FlowStorm as you normally do for your environment. Check https://jpmonettas.github.io/flow-storm-debugger/user_guide.html#_quick_start
+First you need to setup FlowStorm as you normally do for your environment. Check https://flow-storm.github.io/flow-storm-debugger/user_guide.html#_quick_start
 
 Apart from that you need two things. First clone this repo (no package yet) and load it into emacs, like :
 
