@@ -102,9 +102,25 @@ After you have your recordings you can explore them following the same instructi
 
 ### With ClojureScript
 
-Currently you need to have the FlowStorm debugger UI connected to use it with ClojureScript.
+You need to make sure you have the middleware `flow-storm.nrepl.middleware/wrap-flow-storm` injected on your repl nrepl server.
 
-After you have your recordings you can explore them following the same instructions described in `With ClojureStorm` .
+For example, if you are using it with shadow-cljs you will have to add the middleware to your shadow-cljs nrepl server config like this :
+
+```clojure
+{...
+ :nrepl {:port 7123
+         :middleware [flow-storm.nrepl.middleware/wrap-flow-storm]}
+ :builds {:my-app {...}}}
+```
+
+Having done that, you can then `cider-jack-in-cljs` > `shadow` > `:my-app` which should start shadow and give you a cljs repl.
+
+Once you are sure you can eval expressions from your buffers, then try `cider-storm-debug-fn` which should let you choose between
+all recorded functions in the same way as FlowStorm UI `Quick jump`
+
+Currently we need to have the FlowStorm debugger UI connected to use it with ClojureScript.
+
+After you have your recordings you can explore them following the same instructions described in `With ClojureStorm`.
 
 ## Tips
 
