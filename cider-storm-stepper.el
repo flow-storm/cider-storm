@@ -109,9 +109,37 @@ Example :
 (defvar cider-storm-current-thread-trace-cnt nil
   "Current thread timeline length")
 
+(defvar cider-storm--debug-mode-enter-hook nil)
+(defvar cider-storm--debug-mode-quit-hook nil)
+
+;;;;;;;;;;;;;;;;;;;;;
+;; evil-local-mode ;;
+;;;;;;;;;;;;;;;;;;;;;
+
 (defvar cider-storm-disabled-evil-mode-p nil
   "Tracks if we disabled evil-mode when entering the debugger minor-mode
 so we know if we need to restore it after.")
+
+(declare-function evil-local-mode "ext:evil-common")
+
+(defun cider-storm--disable-evil-mode ()
+  "Disable evil-mode when cider-storm-debugging-mode is active."
+  (interactive)
+  (when (bound-and-true-p evil-local-mode)
+    ;; if evil-local-mode, disable it for the buffer
+    (evil-local-mode -1)
+    (setq cider-storm-disabled-evil-mode-p t)
+    (message "Evil mode disabled for this buffer while the debugger is on")))
+
+(defun cider-storm--restore-evil-mode ()
+  "Restore evil-local-mode for the buffer if we disabled it."
+  (interactive)
+  (when cider-storm-disabled-evil-mode-p
+    (evil-local-mode 1)
+    (message "Evil mode restored in this buffer")))
+
+(add-hook 'cider-storm--debug-mode-enter-hook 'cider-storm--disable-evil-mode)
+(add-hook 'cider-storm--debug-mode-quit-hook 'cider-storm--restore-evil-mode)
 
 ;;;;;;;;;;;;;;;;;;;;
 ;; Middleware api ;;
@@ -183,28 +211,18 @@ so we know if we need to restore it after.")
 ;; Debugger implementation ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(declare-function evil-local-mode "ext:evil-common")
 (defun cider-storm--debug-mode-enter ()
   "Called to setup the debug mode"
 
   (cider-storm-debugging-mode 1)
-
-  (when (bound-and-true-p evil-local-mode)
-    ;; if evil-mode disable evil-mode for the buffer
-    (evil-local-mode -1)
-    (setq cider-storm-disabled-evil-mode-p t)
-    (message "Evil mode disabled for this buffer while the debugger is on")))
+  (run-hooks 'cider-storm--debug-mode-enter-hook))
 
 (defun cider-storm--debug-mode-quit ()
   "Called to tear down the debug mode"
 
   (cider--debug-remove-overlays)
   (cider-storm-debugging-mode -1)
-
-  ;; restore evil-mode for the buffer if we disabled it
-  (when cider-storm-disabled-evil-mode-p
-    (evil-local-mode 1)
-    (message "Evil mode restored in this buffer")))
+  (run-hooks 'cider-storm--debug-mode-quit-hook))
 
 (defun cider-storm--select-form (form-id)
   "Given a FORM-ID retrievs the file/line information for it and
