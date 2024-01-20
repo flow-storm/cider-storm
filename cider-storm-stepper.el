@@ -435,7 +435,7 @@ does everything necessary to display the entry on the form."
         (cider--debug-display-result-overlay val-str)))))
 
 (defun cider-storm--show-help ()
-  (let* ((help-text "Keybidings
+  (let* ((help-text "Keybindings
 
 P - Step prev over. Go to the previous recorded step on the same frame.
 p - Step prev. Go to the previous recorded step.
