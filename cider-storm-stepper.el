@@ -200,6 +200,9 @@ so we know if we need to restore it after.")
                                                  "all-frame" ,(if all-frame "true" "false")))
                 (nrepl-dict-get "bindings")))
 
+(defun cider-storm--toggle-recording ()
+  (cider-nrepl-send-sync-request `("op" "flow-storm-toggle-recording")))
+
 (defun cider-storm--clear-recordings ()
   (cider-nrepl-send-sync-request `("op" "flow-storm-clear-recordings")))
 
@@ -626,6 +629,14 @@ finds the first recording entry for it and starts the debugger there."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Debugger interactive API ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun cider-storm-toggle-recording ()
+
+  "Toggle recording on or off."
+
+  (interactive)
+
+  (cider-storm--toggle-recording))
 
 (defun cider-storm-clear-recordings ()
 
