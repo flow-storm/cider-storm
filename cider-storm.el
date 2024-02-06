@@ -231,8 +231,12 @@ on the first recording."
     (define-key cider-storm-map (kbd "r") #'cider-storm-rtrace-last-sexp)
 
     (define-key cider-storm-map (kbd "d") #'cider-storm-debug-current-fn)    
+
     (define-key cider-storm-map (kbd "j") #'cider-storm-debug-fn)    
+
     (define-key cider-storm-map (kbd "l") #'cider-storm-clear-recordings)
+
+    (define-key cider-storm-map (kbd "R") #'cider-storm-toggle-recording)
 
     cider-storm-map)
   "CIDER Storm keymap.")
