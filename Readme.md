@@ -16,7 +16,7 @@ https://github.com/flow-storm/cider-storm/assets/786299/4328309c-9a60-47e1-ae1b-
 
 ## Pre-requisites
 
-- cider
+- cider >= 1.14.0
 - flow-storm >= `3.6.7`
 - when using ClojureStorm >= `1.11.1-7` or >= `1.12.0-alpha4_1`
 	
