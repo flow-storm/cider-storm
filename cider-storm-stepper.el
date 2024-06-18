@@ -435,7 +435,7 @@ does everything necessary to display the entry on the form."
                                                       nil))
              (val-str (nrepl-dict-get val-pprint "val-str")))
 
-        (cider--debug-display-result-overlay val-str)))))
+        (cider--debug-display-result-overlay val-str nil)))))
 
 (defun cider-storm--show-help ()
   (let* ((help-text "Keybindings
