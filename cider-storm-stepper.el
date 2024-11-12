@@ -151,10 +151,11 @@ so we know if we need to restore it after.")
                                                  "thread-id" ,thread-id))
                 (nrepl-dict-get "trace-cnt")))
 
-(defun cider-storm--find-fn-call (fq-fn-symb from-idx from-back)
+(defun cider-storm--find-fn-call (flow-id fq-fn-symb from-idx from-back)
   (thread-first (cider-nrepl-send-sync-request `("op"         "flow-storm-find-fn-call"
+                                                 "flow-id"    ,flow-id
                                                  "fq-fn-symb" ,fq-fn-symb
-                                                 "from-idx"   ,from-idx
+                                                 "from-idx"   ,from-idx                                                 
                                                  "from-back"  ,(if from-back "true" "false")))
                 (nrepl-dict-get "fn-call")))
 
@@ -576,12 +577,11 @@ defines them on the current namespace."
 
       (message "You are currently positioned in a FnCall which is not inspectable."))))
 
-(defun cider-storm--debug-fn (fn-call)
+(defun cider-storm--debug-fn (flow-id fn-call)
   "Given FN-CALL which should be a string with a fully qualified function name,
 finds the first recording entry for it and starts the debugger there."
 
   (let* ((form-id (nrepl-dict-get fn-call "form-id"))
-         (flow-id (nrepl-dict-get fn-call "flow-id"))
          (thread-id (nrepl-dict-get fn-call "thread-id"))
          (trace-cnt (cider-storm--trace-cnt flow-id thread-id)))
     (setq cider-storm-current-entry fn-call)
@@ -599,7 +599,7 @@ finds the first recording entry for it and starts the debugger there."
 
   (let* ((fn-call (cider-storm--find-flow-fn-call flow-id)))
     (if fn-call
-        (cider-storm--debug-fn fn-call)
+        (cider-storm--debug-fn flow-id fn-call)
       (message "No recordings found for flow %s" flow-id))))
 
 (defun cider-storm--show-current-locals ()
@@ -664,10 +664,11 @@ every thread."
             (fn-ns (nrepl-dict-get info "ns"))
             (fn-name (nrepl-dict-get info "name"))
             (fq-fn-name (format "%s/%s" fn-ns fn-name))
+            (flow-id 0) ;; we only support flow-id 0 for now, maybe support other flow-ids with C-u ?
             (fn-call (when (and fn-ns fn-name)
-                       (cider-storm--find-fn-call fq-fn-name 0 nil))))
+                       (cider-storm--find-fn-call flow-id fq-fn-name 0 nil))))
        (if fn-call
-           (cider-storm--debug-fn fn-call)
+           (cider-storm--debug-fn flow-id fn-call)
          (message "No recordings found for %s/%s" fn-ns fn-name))))))
 
 (defun cider-storm-debug-fn ()
@@ -684,9 +685,10 @@ After selecting one, will start the debugger on that function."
                                       (mapcar (lambda (fn-dict)
                                                 (nrepl-dict-get fn-dict "fq-fn-name"))
                                               fns)))
-         (fn-call (cider-storm--find-fn-call fq-fn-name 0 nil)))
+         (flow-id 0) ;; we only support flow-id 0 for now, maybe support other flow-ids with C-u ?
+         (fn-call (cider-storm--find-fn-call flow-id fq-fn-name 0 nil)))
     (if fn-call
-        (cider-storm--debug-fn fn-call)
+        (cider-storm--debug-fn flow-id fn-call)
       (message "No recordings found for %s" fq-fn-name))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;
