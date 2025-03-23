@@ -228,6 +228,16 @@ so we know if we need to restore it after.")
   (cider-storm-debugging-mode -1)
   (run-hooks 'cider-storm--debug-mode-quit-hook))
 
+(defun jar-file-path-p (path)
+  (and (string-prefix-p "file:" path)
+       (string-match ".jar!" path)))
+
+(defun maybe-fix-path-for-jars (path)
+  (if (jar-file-path-p path)
+      ;; this is so cider--find-buffer-for-file, etc, finds a file inside a jar
+      (concat "jar:" path) 
+    path))
+
 (defun cider-storm--select-form (form-id)
   "Given a FORM-ID retrievs the file/line information for it and
 opens a buffer for it. If there is no file info for the form it will popup
@@ -235,7 +245,7 @@ a buffer for it.
 Returns the line number in the buffer where the form is located."
 
   (let* ((form (cider-storm--get-form form-id))
-         (form-file (nrepl-dict-get form "file"))
+         (form-file (maybe-fix-path-for-jars (nrepl-dict-get form "file")))         
          (form-line (nrepl-dict-get form "line")))
 
     (when (and (not (equal (buffer-file-name (current-buffer))
