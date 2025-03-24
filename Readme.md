@@ -120,7 +120,7 @@ For example, if you are using it with shadow-cljs you will have to add the middl
 ```clojure
 {...
  :nrepl {:port 7123
-		 :middleware [flow-storm.nrepl.middleware/wrap-flow-storm]}
+	 :middleware [flow-storm.nrepl.middleware/wrap-flow-storm]}
  :builds {:my-app {...}}}
 ```
 
